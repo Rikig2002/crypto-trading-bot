@@ -17,12 +17,18 @@ logger = logging.getLogger(__name__)
 class MarketDataCollector:
     def __init__(
         self,
-        symbol: str | None = None,
+        symbols: list[str] | None = None,
         timeframe: str | None = None,
         interval_seconds: int | None = None,
         batch_size: int | None = None,
     ):
-        self.symbol = symbol or settings.market_symbol
+        configured_symbols = [
+            symbol.strip().upper()
+            for symbol in settings.market_symbols.split(",")
+            if symbol.strip()
+        ]
+
+        self.symbols = symbols or configured_symbols
         self.timeframe = timeframe or settings.market_timeframe
         self.interval_seconds = (
             interval_seconds
@@ -34,6 +40,9 @@ class MarketDataCollector:
             if batch_size is not None
             else settings.market_batch_size
         )
+
+        if not self.symbols:
+            raise ValueError("At least one market symbol must be configured")
 
         self.service = MarketDataService()
         self.running = True
@@ -48,38 +57,52 @@ class MarketDataCollector:
         self.stop_event.set()
 
     def run_once(self) -> int:
-        stored = self.service.fetch_and_store(
-            symbol=self.symbol,
-            timeframe=self.timeframe,
-            limit=self.batch_size,
-        )
+        total_stored = 0
 
-        logger.info(
-            "Market data collection completed | "
-            "symbol=%s | timeframe=%s | batch_size=%d | stored=%d",
-            self.symbol,
-            self.timeframe,
-            self.batch_size,
-            stored,
-        )
+        for symbol in self.symbols:
+            if not self.running:
+                break
 
-        return stored
+            try:
+                stored = self.service.fetch_and_store(
+                    symbol=symbol,
+                    timeframe=self.timeframe,
+                    limit=self.batch_size,
+                )
+
+                total_stored += stored
+
+                logger.info(
+                    "Market data collection completed | "
+                    "symbol=%s | timeframe=%s | batch_size=%d | stored=%d",
+                    symbol,
+                    self.timeframe,
+                    self.batch_size,
+                    stored,
+                )
+
+            except Exception:
+                logger.exception(
+                    "Market data collection failed | "
+                    "symbol=%s | timeframe=%s",
+                    symbol,
+                    self.timeframe,
+                )
+
+        return total_stored
 
     def run_forever(self) -> None:
         logger.info(
             "Starting market data collector | "
-            "symbol=%s | timeframe=%s | interval=%ds | batch_size=%d",
-            self.symbol,
+            "symbols=%s | timeframe=%s | interval=%ds | batch_size=%d",
+            ",".join(self.symbols),
             self.timeframe,
             self.interval_seconds,
             self.batch_size,
         )
 
         while self.running:
-            try:
-                self.run_once()
-            except Exception:
-                logger.exception("Market data collection failed")
+            self.run_once()
 
             if self.running:
                 self.stop_event.wait(self.interval_seconds)
