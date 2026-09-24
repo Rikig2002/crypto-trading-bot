@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = True
 
-    database_url: str = "sqlite:///./data/bot.db"
+    database_url: str = "postgresql+psycopg://crypto_user:change_me@localhost:5432/crypto_trading"
     redis_url: str = "redis://localhost:6379/0"
 
     exchange_name: str = "binance"
