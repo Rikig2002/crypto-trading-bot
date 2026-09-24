@@ -29,7 +29,7 @@ class MarketDataValidator:
             timestamp = timestamp.astimezone(timezone.utc)
 
         prices = {
-            "open": open_price,
+            "open_price": open_price,
             "high": high,
             "low": low,
             "close": close,
@@ -38,7 +38,9 @@ class MarketDataValidator:
 
         for name, value in prices.items():
             if not isfinite(value):
-                raise ValueError(f"{name} must be finite")
+                raise ValueError(
+                    f"{name.replace('_', ' ')} must be finite"
+                )
 
         if open_price <= 0:
             raise ValueError("Open price must be positive")
