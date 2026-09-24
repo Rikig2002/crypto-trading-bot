@@ -96,7 +96,11 @@ class MarketDataQualityMonitor:
         symbol: str,
         timeframe: str,
         recent_candles: int = 10,
+        max_staleness_minutes: int | None = None,
     ) -> dict:
+        if timeframe not in TIMEFRAME_MINUTES:
+            raise ValueError(f"Unsupported timeframe: {timeframe}")
+
         missing = self.check_recent_continuity(
             symbol=symbol,
             timeframe=timeframe,
@@ -116,11 +120,32 @@ class MarketDataQualityMonitor:
                 timezone.utc
             )
 
+        now = datetime.now(timezone.utc)
+
+        if max_staleness_minutes is None:
+            max_staleness_minutes = TIMEFRAME_MINUTES[timeframe] * 2
+
+        stale = False
+
+        if latest_timestamp is None:
+            stale = True
+        else:
+            age = now - latest_timestamp
+            stale = age > timedelta(minutes=max_staleness_minutes)
+
+        if stale:
+            status = "STALE"
+        elif missing:
+            status = "DEGRADED"
+        else:
+            status = "HEALTHY"
+
         return {
             "symbol": symbol,
             "timeframe": timeframe,
-            "status": "HEALTHY" if not missing else "DEGRADED",
+            "status": status,
             "latest_timestamp": latest_timestamp,
             "missing_count": len(missing),
             "missing_timestamps": missing,
+            "stale": stale,
         }

@@ -3,6 +3,8 @@ import signal
 import threading
 
 from apps.data_engine.services.market_data_service import MarketDataService
+from apps.data_engine.services.market_data_backfill_service import MarketDataBackfillService
+from apps.data_engine.quality.market_data_quality import MarketDataQualityMonitor
 from config.settings import settings
 
 
@@ -45,6 +47,9 @@ class MarketDataCollector:
             raise ValueError("At least one market symbol must be configured")
 
         self.service = MarketDataService()
+        self.backfill_service = MarketDataBackfillService()
+        self.quality_monitor = MarketDataQualityMonitor()
+
         self.running = True
         self.stop_event = threading.Event()
 
@@ -79,6 +84,55 @@ class MarketDataCollector:
                     self.timeframe,
                     self.batch_size,
                     stored,
+                )
+
+                quality = self.quality_monitor.get_status(
+                    symbol=symbol,
+                    timeframe=self.timeframe,
+                    recent_candles=30,
+                )
+
+                if quality["missing_count"] > 0:
+                    logger.warning(
+                        "Market data gap detected | "
+                        "symbol=%s | missing=%d",
+                        symbol,
+                        quality["missing_count"],
+                    )
+
+                    recovered = self.backfill_service.backfill(
+                        symbol=symbol,
+                        timeframe=self.timeframe,
+                    )
+
+                    logger.info(
+                        "Market data backfill completed | "
+                        "symbol=%s | recovered=%d",
+                        symbol,
+                        recovered,
+                    )
+
+                    quality = self.quality_monitor.get_status(
+                        symbol=symbol,
+                        timeframe=self.timeframe,
+                        recent_candles=30,
+                    )
+
+                if quality["stale"]:
+                    logger.warning(
+                        "Market data is stale | "
+                        "symbol=%s | latest=%s",
+                        symbol,
+                        quality["latest_timestamp"],
+                    )
+
+                logger.info(
+                    "Market data quality | "
+                    "symbol=%s | status=%s | missing=%d | stale=%s",
+                    symbol,
+                    quality["status"],
+                    quality["missing_count"],
+                    quality["stale"],
                 )
 
             except Exception:
