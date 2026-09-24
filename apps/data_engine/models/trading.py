@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, String, Text
+from sqlalchemy import DateTime, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from apps.data_engine.database import Base
@@ -8,6 +8,15 @@ from apps.data_engine.database import Base
 
 class MarketData(Base):
     __tablename__ = "market_data"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "symbol",
+            "timeframe",
+            "timestamp",
+            name="uq_market_data_candle",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     symbol: Mapped[str] = mapped_column(String(30), index=True)
