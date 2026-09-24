@@ -1,6 +1,6 @@
 import logging
 import signal
-import time
+import threading
 
 from apps.data_engine.services.market_data_service import MarketDataService
 
@@ -23,8 +23,10 @@ class MarketDataCollector:
         self.symbol = symbol
         self.timeframe = timeframe
         self.interval_seconds = interval_seconds
+
         self.service = MarketDataService()
         self.running = True
+        self.stop_event = threading.Event()
 
         signal.signal(signal.SIGINT, self._shutdown)
         signal.signal(signal.SIGTERM, self._shutdown)
@@ -32,6 +34,7 @@ class MarketDataCollector:
     def _shutdown(self, signum, frame):
         logger.info("Shutdown signal received. Stopping collector...")
         self.running = False
+        self.stop_event.set()
 
     def run_once(self) -> int:
         stored = self.service.fetch_and_store(
@@ -63,7 +66,7 @@ class MarketDataCollector:
                 logger.exception("Market data collection failed")
 
             if self.running:
-                time.sleep(self.interval_seconds)
+                self.stop_event.wait(self.interval_seconds)
 
         logger.info("Market data collector stopped.")
 
