@@ -56,12 +56,22 @@ class BinanceClient:
         symbol: str = "BTCUSDT",
         interval: str = "1m",
         limit: int = 100,
+        start_time: int | None = None,
+        end_time: int | None = None,
     ) -> list:
+        params = {
+            "symbol": symbol,
+            "interval": interval,
+            "limit": limit,
+        }
+
+        if start_time is not None:
+            params["startTime"] = start_time
+
+        if end_time is not None:
+            params["endTime"] = end_time
+
         return self._get(
             "/api/v3/klines",
-            {
-                "symbol": symbol,
-                "interval": interval,
-                "limit": limit,
-            },
+            params,
         )
