@@ -5,6 +5,7 @@ from sqlalchemy import select
 from apps.data_engine.database import SessionLocal
 from apps.data_engine.exchanges.binance_client import BinanceClient
 from apps.data_engine.models.trading import MarketData
+from apps.data_engine.validators.market_data_validator import MarketDataValidator
 
 
 class MarketDataService:
@@ -43,15 +44,32 @@ class MarketDataService:
                 if existing:
                     continue
 
+                open_price = float(candle[1])
+                high = float(candle[2])
+                low = float(candle[3])
+                close = float(candle[4])
+                volume = float(candle[5])
+
+                MarketDataValidator.validate(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    timestamp=timestamp,
+                    open_price=open_price,
+                    high=high,
+                    low=low,
+                    close=close,
+                    volume=volume,
+                )
+
                 market_data = MarketData(
                     symbol=symbol,
                     timeframe=timeframe,
                     timestamp=timestamp,
-                    open=float(candle[1]),
-                    high=float(candle[2]),
-                    low=float(candle[3]),
-                    close=float(candle[4]),
-                    volume=float(candle[5]),
+                    open=open_price,
+                    high=high,
+                    low=low,
+                    close=close,
+                    volume=volume,
                 )
 
                 session.add(market_data)
