@@ -3,6 +3,7 @@ import signal
 import threading
 
 from apps.data_engine.services.market_data_service import MarketDataService
+from config.settings import settings
 
 
 logging.basicConfig(
@@ -16,13 +17,23 @@ logger = logging.getLogger(__name__)
 class MarketDataCollector:
     def __init__(
         self,
-        symbol: str = "BTCUSDT",
-        timeframe: str = "1m",
-        interval_seconds: int = 60,
+        symbol: str | None = None,
+        timeframe: str | None = None,
+        interval_seconds: int | None = None,
+        batch_size: int | None = None,
     ):
-        self.symbol = symbol
-        self.timeframe = timeframe
-        self.interval_seconds = interval_seconds
+        self.symbol = symbol or settings.market_symbol
+        self.timeframe = timeframe or settings.market_timeframe
+        self.interval_seconds = (
+            interval_seconds
+            if interval_seconds is not None
+            else settings.collection_interval_seconds
+        )
+        self.batch_size = (
+            batch_size
+            if batch_size is not None
+            else settings.market_batch_size
+        )
 
         self.service = MarketDataService()
         self.running = True
@@ -40,13 +51,15 @@ class MarketDataCollector:
         stored = self.service.fetch_and_store(
             symbol=self.symbol,
             timeframe=self.timeframe,
-            limit=5,
+            limit=self.batch_size,
         )
 
         logger.info(
-            "Market data collection completed | symbol=%s | timeframe=%s | stored=%d",
+            "Market data collection completed | "
+            "symbol=%s | timeframe=%s | batch_size=%d | stored=%d",
             self.symbol,
             self.timeframe,
+            self.batch_size,
             stored,
         )
 
@@ -54,9 +67,12 @@ class MarketDataCollector:
 
     def run_forever(self) -> None:
         logger.info(
-            "Starting market data collector | symbol=%s | timeframe=%s",
+            "Starting market data collector | "
+            "symbol=%s | timeframe=%s | interval=%ds | batch_size=%d",
             self.symbol,
             self.timeframe,
+            self.interval_seconds,
+            self.batch_size,
         )
 
         while self.running:

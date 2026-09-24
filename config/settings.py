@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     exchange_api_key: str = ""
     exchange_api_secret: str = ""
 
+    market_symbol: str = "BTCUSDT"
+    market_timeframe: str = "1m"
+    collection_interval_seconds: int = 60
+    market_batch_size: int = 5
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
